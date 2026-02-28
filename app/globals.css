@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --color-primary: #96005a;
+  --color-primary-light: #c21f7a;
+  --color-secondary: #d61f69;
+  --color-accent-yellow: #ffcc00;
+  --color-accent-blue: #00b4d8;
+  --color-background-light: #f8f5f7;
+  --color-background-dark: #230f1b;
+  --color-card-dark: rgba(255, 255, 255, 0.05);
+
+  --font-display: 'Epilogue', sans-serif;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  .modern-input:focus {
+    box-shadow: 0 0 0 2px rgba(150, 0, 90, 0.4);
+  }
+}
