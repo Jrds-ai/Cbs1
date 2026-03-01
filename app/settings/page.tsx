@@ -6,12 +6,13 @@ import { useState, useEffect } from 'react';
 
 export default function Settings() {
   const { user, logout } = useAuth();
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return true;
-  });
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    });
+  }, []);
   const [notifications, setNotifications] = useState(true);
 
   useEffect(() => {

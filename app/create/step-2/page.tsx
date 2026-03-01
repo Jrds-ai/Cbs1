@@ -16,7 +16,14 @@ export default function Step2() {
       setError('Please select an audience type to continue.');
       return;
     }
-    router.push('/create/step-3');
+    // Save to localStorage for flow branching
+    localStorage.setItem('coloring_book_audience', audienceType);
+    
+    if (audienceType === 'marketing_power') {
+      router.push('/templates');
+    } else {
+      router.push('/create/step-3');
+    }
   };
 
   return (

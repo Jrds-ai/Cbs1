@@ -3,11 +3,30 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Check, ArrowRight, BookOpen, Layers, Palette, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function Review() {
+  const [audience, setAudience] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Use Promise to avoid synchronous setState in effect warning
+    Promise.resolve().then(() => {
+      setAudience(localStorage.getItem('coloring_book_audience'));
+    });
+  }, []);
+
+  const getAudienceLabel = (type: string | null) => {
+    switch (type) {
+      case 'magical_gift': return 'Magical Gift';
+      case 'special_event': return 'Special Event';
+      case 'marketing_power': return 'Marketing Power';
+      default: return 'For Kids';
+    }
+  };
+
   const steps = [
     { label: 'Basic Info', value: 'The Magic Crayon', icon: <BookOpen className="w-4 h-4" />, href: '/create/step-1' },
-    { label: 'Audience', value: 'For Kids', icon: <Layers className="w-4 h-4" />, href: '/create/step-2' },
+    { label: 'Audience', value: getAudienceLabel(audience), icon: <Layers className="w-4 h-4" />, href: '/create/step-2' },
     { label: 'Art Style', value: 'Playful Cartoon', icon: <Palette className="w-4 h-4" />, href: '/create/step-3' },
     { label: 'Photo Source', value: 'Uploaded Photo', icon: <ImageIcon className="w-4 h-4" />, href: '/create/step-4' },
   ];
@@ -87,8 +106,8 @@ export default function Review() {
             <Link href="/create/preview" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <Link href="/templates" className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-center">
-              <span>Choose Template</span>
+            <Link href={audience === 'marketing_power' ? '/templates' : '/create/checkout'} className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-center">
+              <span>{audience === 'marketing_power' ? 'Choose Template' : 'Go to Checkout'}</span>
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
