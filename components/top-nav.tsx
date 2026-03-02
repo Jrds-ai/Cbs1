@@ -25,10 +25,8 @@ export function TopNav() {
         </button>
       ) : (
         <div className="flex items-center gap-2">
-          <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 overflow-hidden relative">
-            <BookOpen className="w-5 h-5 relative z-10" />
-            <div className="absolute -right-2 -top-2 w-6 h-6 bg-accent-yellow rounded-full blur-sm opacity-60"></div>
-            <div className="absolute -left-2 -bottom-2 w-6 h-6 bg-accent-blue rounded-full blur-sm opacity-60"></div>
+          <div className="size-9 rounded-xl overflow-hidden relative shadow-lg shadow-primary/30">
+            <img src="/logo.png" alt="Coloring Book Studio Logo" className="w-full h-full object-cover" />
           </div>
           <span className="font-bold text-lg tracking-tight text-primary dark:text-pink-400">Coloring Book Studio</span>
         </div>
@@ -37,8 +35,8 @@ export function TopNav() {
       {isCreateFlow || isReview ? (
         <>
           <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/30 overflow-hidden relative">
-              <BookOpen className="w-4 h-4 relative z-10" />
+            <div className="size-8 rounded-xl overflow-hidden relative shadow-lg shadow-primary/30">
+              <img src="/logo.png" alt="Coloring Book Studio Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-lg tracking-tight text-primary dark:text-pink-400">
               {isReview ? 'Review Page' : 'Coloring Book Studio'}

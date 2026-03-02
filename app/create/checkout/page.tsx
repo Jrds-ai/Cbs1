@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Truck, CreditCard, User, Home, Calendar, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Truck, CreditCard, User, Home, Calendar, Lock, CheckCircle, AlertCircle, Globe } from 'lucide-react';
 
 export default function Checkout() {
   const router = useRouter();
+  const [showInShowcase, setShowInShowcase] = useState(true);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -255,6 +256,33 @@ export default function Checkout() {
               {errors.cvc && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.cvc}</p>}
             </div>
           </div>
+        </div>
+
+        <div className="h-px bg-slate-200 dark:bg-white/10 w-full"></div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary dark:text-pink-400" />
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Showcase</h2>
+            </div>
+          </div>
+          
+          <label className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 cursor-pointer hover:border-primary/50 transition-colors">
+            <div className="flex flex-col">
+              <span className="font-bold text-slate-900 dark:text-white text-sm">Publish to Showcase</span>
+              <span className="text-xs text-slate-500 dark:text-pink-200/60 mt-0.5">Allow others to see and be inspired by your creation</span>
+            </div>
+            <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showInShowcase ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}>
+              <input 
+                type="checkbox" 
+                className="sr-only" 
+                checked={showInShowcase} 
+                onChange={(e) => setShowInShowcase(e.target.checked)} 
+              />
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showInShowcase ? 'translate-x-6' : 'translate-x-1'}`} />
+            </div>
+          </label>
         </div>
 
         <div className="rounded-3xl relative overflow-hidden p-[2px] bg-gradient-to-r from-accent-blue/30 via-primary/30 to-accent-yellow/30 shadow-lg shadow-primary/5 dark:shadow-none">

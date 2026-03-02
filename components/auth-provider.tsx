@@ -1,78 +1,123 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { auth, googleProvider, isConfigured } from '@/lib/firebase';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  signOut, 
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
+  updateProfile
+} from 'firebase/auth';
 
 type User = {
   name: string;
   email: string;
+  uid: string;
 };
 
 type AuthContextType = {
   user: User | null;
-  login: (email: string, name: string) => void;
-  logout: () => void;
-  signup: (email: string, name: string) => void;
-  loginWithGoogle: () => void;
+  loading: boolean;
+  logout: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  sendMagicLink: (email: string) => Promise<void>;
+  verifyMagicLink: (email: string, link: string) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    Promise.resolve().then(() => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          // Ignore parse errors
-        }
+    if (!isConfigured || !auth) {
+      Promise.resolve().then(() => setLoading(false));
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+          email: firebaseUser.email || '',
+          uid: firebaseUser.uid,
+        });
+      } else {
+        setUser(null);
       }
-      setMounted(true);
+      setLoading(false);
     });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (mounted && !user && pathname !== '/login' && pathname !== '/signup') {
+    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
       router.push('/login');
     }
-  }, [user, pathname, router, mounted]);
+  }, [user, loading, pathname, router]);
 
-  const login = (email: string, name: string) => {
-    const newUser = { email, name };
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    router.push('/');
+  const loginWithGoogle = async () => {
+    if (!isConfigured || !auth || !googleProvider) {
+      alert('Firebase is not configured. Please set up your environment variables in AI Studio.');
+      return;
+    }
+    try {
+      await signInWithPopup(auth, googleProvider);
+      router.push('/');
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      throw error;
+    }
   };
 
-  const signup = (email: string, name: string) => {
-    const newUser = { email, name };
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    router.push('/');
+  const sendMagicLink = async (email: string) => {
+    if (!isConfigured || !auth) {
+      alert('Firebase is not configured. Please set up your environment variables in AI Studio.');
+      return;
+    }
+    const actionCodeSettings = {
+      url: window.location.origin + '/login',
+      handleCodeInApp: true,
+    };
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    window.localStorage.setItem('emailForSignIn', email);
   };
 
-  const loginWithGoogle = () => {
-    const newUser = { email: 'google@example.com', name: 'Google User' };
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    router.push('/');
-  };
+  const verifyMagicLink = useCallback(async (email: string, link: string) => {
+    if (!isConfigured || !auth) return false;
+    if (isSignInWithEmailLink(auth, link)) {
+      const result = await signInWithEmailLink(auth, email, link);
+      window.localStorage.removeItem('emailForSignIn');
+      
+      const savedName = window.localStorage.getItem('nameForSignUp');
+      if (savedName && result.user) {
+        await updateProfile(result.user, { displayName: savedName });
+        window.localStorage.removeItem('nameForSignUp');
+        setUser(prev => prev ? { ...prev, name: savedName } : null);
+      }
+      
+      router.push('/');
+      return true;
+    }
+    return false;
+  }, [router]);
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const logout = async () => {
+    if (!isConfigured || !auth) return;
+    await signOut(auth);
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, signup, loginWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, logout, loginWithGoogle, sendMagicLink, verifyMagicLink }}>
       {children}
     </AuthContext.Provider>
   );

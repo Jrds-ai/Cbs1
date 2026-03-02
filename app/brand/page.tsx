@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useRef } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, UploadCloud, Globe, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { ArrowLeft, UploadCloud, Globe, Image as ImageIcon, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
 
 export default function BrandYourBook() {
   const router = useRouter();
@@ -22,6 +22,40 @@ export default function BrandYourBook() {
   }>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [isGeneratingLogo, setIsGeneratingLogo] = useState(false);
+  const [logoPrompt, setLogoPrompt] = useState('');
+  const [showLogoPrompt, setShowLogoPrompt] = useState(false);
+
+  const generateLogo = async () => {
+    if (!logoPrompt.trim()) return;
+    setIsGeneratingLogo(true);
+    setErrors(prev => ({ ...prev, logo: undefined }));
+    
+    try {
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: `A professional, clean business logo for: ${logoPrompt}. Vector style, white background, high quality, vibrant colors.`,
+      });
+      
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) {
+          const base64Data = part.inlineData.data;
+          setLogo(`data:image/png;base64,${base64Data}`);
+          setShowLogoPrompt(false);
+          break;
+        }
+      }
+    } catch (e: any) {
+      console.error('Error generating logo:', e);
+      setErrors(prev => ({ ...prev, logo: 'Failed to generate logo. Please try again.' }));
+    } finally {
+      setIsGeneratingLogo(false);
+    }
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,7 +131,44 @@ export default function BrandYourBook() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <label className="text-base font-bold text-slate-900 dark:text-white">Business Logo</label>
+          <div className="flex items-center justify-between">
+            <label className="text-base font-bold text-slate-900 dark:text-white">Business Logo</label>
+            <button 
+              onClick={() => setShowLogoPrompt(!showLogoPrompt)}
+              className="text-sm font-bold text-primary dark:text-pink-400 hover:underline flex items-center gap-1"
+            >
+              <Sparkles className="w-4 h-4" />
+              Generate with AI
+            </button>
+          </div>
+          
+          {showLogoPrompt && (
+            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-4 flex flex-col gap-3 animate-fade-in">
+              <label className="text-sm font-bold text-slate-900 dark:text-white">Describe your logo</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  value={logoPrompt}
+                  onChange={(e) => setLogoPrompt(e.target.value)}
+                  placeholder="e.g. A cute tooth with a toothbrush, blue colors"
+                  className="flex-1 bg-white dark:bg-[#2d1a24] border border-gray-300 dark:border-[#5a3a4b] rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none"
+                  disabled={isGeneratingLogo}
+                />
+                <button 
+                  onClick={generateLogo}
+                  disabled={isGeneratingLogo || !logoPrompt.trim()}
+                  className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isGeneratingLogo ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+                  ) : (
+                    'Generate'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div 
             className={`group relative flex flex-col items-center gap-4 rounded-xl border-2 border-dashed ${errors.logo ? 'border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-primary/40 bg-[#36222d]/50 dark:bg-[#2d1a24] hover:border-primary hover:bg-primary/5'} px-6 py-10 transition-colors`}
           >

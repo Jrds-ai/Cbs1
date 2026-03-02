@@ -1,114 +1,143 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import Link from 'next/link';
-import { BookOpen, ArrowRight, AlertCircle } from 'lucide-react';
+import { BookOpen, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
-  const { signup, loginWithGoogle } = useAuth();
+  const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'verifying'>('idle');
+  const [error, setError] = useState('');
+  const { loginWithGoogle, sendMagicLink, verifyMagicLink } = useAuth();
 
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
-    let isValid = true;
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      if (typeof window !== 'undefined' && window.location.href.includes('apiKey=')) {
+        setStatus('verifying');
+        let savedEmail = window.localStorage.getItem('emailForSignIn');
+        if (!savedEmail) {
+          savedEmail = window.prompt('Please provide your email for confirmation');
+        }
+        if (savedEmail) {
+          verifyMagicLink(savedEmail, window.location.href)
+            .catch(err => {
+              setError('Failed to verify magic link. It may have expired.');
+              setStatus('idle');
+            });
+        } else {
+          setError('Email is required to verify the magic link.');
+          setStatus('idle');
+        }
+      }
+    });
+  }, [verifyMagicLink]);
 
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-      isValid = false;
-    }
-
-    if (!email) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-      isValid = false;
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      signup(email, name);
+    if (!name.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    setStatus('loading');
+    setError('');
+    try {
+      // Save name so we can update profile after magic link verification
+      window.localStorage.setItem('nameForSignUp', name);
+      await sendMagicLink(email);
+      setStatus('sent');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send magic link');
+      setStatus('idle');
     }
   };
+
+  if (status === 'verifying') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-background-light dark:bg-background-dark">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Verifying your magic link...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-background-light dark:bg-background-dark">
       <div className="w-full max-w-md flex flex-col items-center animate-fade-in">
-        <div className="size-20 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shadow-xl shadow-primary/30 mb-8 relative overflow-hidden">
-          <BookOpen className="w-10 h-10 relative z-10" />
-          <div className="absolute -right-4 -top-4 w-12 h-12 bg-accent-yellow rounded-full blur-md opacity-60"></div>
-          <div className="absolute -left-4 -bottom-4 w-12 h-12 bg-accent-blue rounded-full blur-md opacity-60"></div>
+        <div className="size-24 rounded-3xl overflow-hidden shadow-xl shadow-primary/30 mb-8 relative">
+          <img src="/logo.png" alt="Coloring Book Studio Logo" className="w-full h-full object-cover" />
         </div>
         
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 text-center">Coloring Book Studio</h1>
         <p className="text-slate-500 dark:text-pink-200/70 text-center mb-8">Join the magic and start creating.</p>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-4" noValidate>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Name</label>
-            <input 
-              type="text" 
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (errors.name) setErrors(prev => ({ ...prev, name: undefined }));
-              }}
-              className={`w-full bg-white dark:bg-white/5 border ${errors.name ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
-              placeholder="Jane Doe"
-            />
-            {errors.name && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.name}</p>}
+        {status === 'sent' ? (
+          <div className="w-full bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-6 flex flex-col items-center text-center animate-fade-in">
+            <CheckCircle2 className="w-12 h-12 text-green-500 mb-4" />
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Check your email</h3>
+            <p className="text-sm text-slate-500 dark:text-pink-200/70">
+              We&apos;ve sent a magic link to <strong>{email}</strong>. Click the link to sign in instantly.
+            </p>
+            <button 
+              onClick={() => setStatus('idle')}
+              className="mt-6 text-sm font-bold text-primary dark:text-pink-400 hover:underline"
+            >
+              Try a different email
+            </button>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Email</label>
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
-              }}
-              className={`w-full bg-white dark:bg-white/5 border ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
-              placeholder="you@example.com"
-            />
-            {errors.email && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.email}</p>}
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Password</label>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
-              }}
-              className={`w-full bg-white dark:bg-white/5 border ${errors.password ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
-              placeholder="••••••••"
-            />
-            {errors.password && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.password}</p>}
-          </div>
-          
-          <button type="submit" className="w-full group bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-6">
-            <span>Sign Up</span>
-            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-          </button>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="w-full space-y-4" noValidate>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Name</label>
+              <input 
+                type="text" 
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (error) setError('');
+                }}
+                className={`w-full bg-white dark:bg-white/5 border ${error && !name ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
+                placeholder="Jane Doe"
+                disabled={status === 'loading'}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Email</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError('');
+                }}
+                className={`w-full bg-white dark:bg-white/5 border ${error && email ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
+                placeholder="you@example.com"
+                disabled={status === 'loading'}
+              />
+              {error && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {error}</p>}
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={status === 'loading'}
+              className="w-full group bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-70 disabled:pointer-events-none"
+            >
+              {status === 'loading' ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <span>Send Magic Link</span>
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         <div className="w-full my-6 flex items-center gap-4">
           <div className="h-px bg-slate-200 dark:bg-white/10 flex-1"></div>
