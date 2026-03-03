@@ -1,6 +1,7 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
 import './globals.css'; // Global styles
 import { AuthProvider } from '@/components/auth-provider';
+import { NotificationProvider } from '@/components/notification-provider';
 import { TopNav } from '@/components/top-nav';
 import { BottomNav } from '@/components/bottom-nav';
 
@@ -9,14 +10,16 @@ export const metadata: Metadata = {
   description: 'Create your own magical coloring books',
 };
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className="bg-background-light dark:bg-background-dark font-display min-h-screen text-slate-900 dark:text-pink-50 flex flex-col antialiased selection:bg-primary selection:text-white pb-24" suppressHydrationWarning>
         <AuthProvider>
-          <TopNav />
-          {children}
-          <BottomNav />
+          <NotificationProvider>
+            <TopNav />
+            {children}
+            <BottomNav />
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Bell, User, MoreVertical } from 'lucide-react';
 import { useAuth } from './auth-provider';
+import { useNotifications } from './notification-provider';
 
 export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/templates' || pathname === '/brand') {
     return null;
@@ -52,7 +54,9 @@ export function TopNav() {
         <div className="flex items-center gap-3">
           <Link href="/notifications" className="relative size-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
             <Bell className="w-6 h-6 text-slate-600 dark:text-pink-200" />
-            <span className="absolute top-2 right-2 size-2.5 bg-accent-yellow rounded-full ring-2 ring-background-light dark:ring-background-dark"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 size-2.5 bg-accent-yellow rounded-full ring-2 ring-background-light dark:ring-background-dark"></span>
+            )}
           </Link>
           <div className="size-10 flex items-center justify-center relative group cursor-pointer" onClick={logout}>
             <div className="size-9 rounded-full bg-primary/10 dark:bg-primary/30 flex items-center justify-center border border-primary/20 overflow-hidden">

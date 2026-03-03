@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
-import { User, Bell, Moon, Sun, LogOut, ChevronRight, Shield, CreditCard } from 'lucide-react';
+import Link from 'next/link';
+import { User, Bell, Moon, Sun, LogOut, ChevronRight, Shield, CreditCard, Cpu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function Settings() {
@@ -59,7 +60,7 @@ export default function Settings() {
             <h2 className="font-bold text-lg text-slate-900 dark:text-white truncate">{user?.name || 'Guest User'}</h2>
             <p className="text-sm text-slate-500 dark:text-pink-200/60 truncate">{user?.email || 'Not logged in'}</p>
           </div>
-          <button 
+          <button
             onClick={() => alert('Profile editing coming soon!')}
             className="px-4 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white rounded-xl text-sm font-bold transition-colors"
           >
@@ -81,14 +82,14 @@ export default function Settings() {
                   <p className="text-xs text-slate-500 dark:text-pink-200/60">Toggle app theme</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={toggleDarkMode}
                 className={`w-12 h-6 rounded-full transition-colors relative ${isDarkMode ? 'bg-primary' : 'bg-slate-200 dark:bg-white/20'}`}
               >
                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isDarkMode ? 'left-7' : 'left-1'}`}></div>
               </button>
             </div>
-            
+
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <div className="size-10 rounded-xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-600 dark:text-orange-400">
@@ -99,7 +100,7 @@ export default function Settings() {
                   <p className="text-xs text-slate-500 dark:text-pink-200/60">Order updates & news</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setNotifications(!notifications)}
                 className={`w-12 h-6 rounded-full transition-colors relative ${notifications ? 'bg-primary' : 'bg-slate-200 dark:bg-white/20'}`}
               >
@@ -113,7 +114,7 @@ export default function Settings() {
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-3 ml-2">Account</h3>
           <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm">
-            <button 
+            <button
               onClick={() => alert('Payment methods management coming soon!')}
               className="w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
             >
@@ -125,8 +126,24 @@ export default function Settings() {
               </div>
               <ChevronRight className="w-5 h-5 text-slate-400" />
             </button>
-            
-            <button 
+
+            <Link
+              href="/admin"
+              className="w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-violet-100 dark:bg-violet-500/20 flex items-center justify-center text-violet-600 dark:text-violet-400">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-white">Admin Panel</p>
+                  <p className="text-xs text-slate-500 dark:text-pink-200/60">AI model & generation settings</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </Link>
+
+            <button
               onClick={() => alert('Privacy & Security settings coming soon!')}
               className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left"
             >
@@ -142,7 +159,7 @@ export default function Settings() {
         </div>
 
         {/* Logout */}
-        <button 
+        <button
           onClick={logout}
           className="w-full mt-4 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 font-bold text-lg py-4 px-8 rounded-2xl hover:bg-red-100 dark:hover:bg-red-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
         >

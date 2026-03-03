@@ -2,39 +2,133 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Camera, Upload, Image as ImageIcon, Sparkles, ArrowRight, X, AlertCircle } from 'lucide-react';
+import { Camera, Upload, Image as ImageIcon, Sparkles, ArrowRight, X, AlertCircle, Loader2 } from 'lucide-react';
+import { storage } from '@/lib/firebase';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '@/components/auth-provider';
 
 export default function Step4() {
   const router = useRouter();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError('Please upload an image file.');
-        return;
+  useEffect(() => {
+    // Load existing from localStorage
+    const saved = localStorage.getItem('coloring_book_images');
+    if (saved) {
+      try {
+        setSelectedImages(JSON.parse(saved));
+      } catch (e) {
+        // ignore
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
-        setError('');
-      };
-      reader.readAsDataURL(file);
     }
+  }, []);
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const imgElement = document.createElement('img');
+        imgElement.src = event.target?.result as string;
+        imgElement.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = imgElement;
+          const max_size = 1200;
+
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(imgElement, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        imgElement.onerror = (e) => reject(e);
+      };
+      reader.onerror = (e) => reject(e);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    if (!user) {
+      setError('You must be logged in to upload images.');
+      return;
+    }
+
+    setError('');
+    const validFiles = files.filter(f => f.type.startsWith('image/'));
+
+    if (validFiles.length !== files.length) {
+      setError('Some files were skipped. Please upload only image files.');
+    }
+
+    setIsCompressing(true);
+
+    try {
+      const compressedImages = await Promise.all(validFiles.map(compressImage));
+
+      // Upload directly to storage on selection to prevent localStorage overflow
+      const uploadPromises = compressedImages.map(async (dataUrl, i) => {
+        if (!storage) throw new Error('Storage missing');
+        const imageId = `${Date.now()}_${i}`;
+        const imageRef = ref(storage, `users/${user.uid}/drafts/${imageId}.jpg`);
+        await uploadString(imageRef, dataUrl, 'data_url');
+        return getDownloadURL(imageRef);
+      });
+
+      const newUrls = await Promise.all(uploadPromises);
+
+      setSelectedImages(prev => {
+        const newImages = [...prev, ...newUrls];
+        localStorage.setItem('coloring_book_images', JSON.stringify(newImages));
+        return newImages;
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Error processing images. Please try again.');
+    } finally {
+      setIsCompressing(false);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (indexToRemove: number) => {
+    setSelectedImages(prev => {
+      const newImages = prev.filter((_, i) => i !== indexToRemove);
+      localStorage.setItem('coloring_book_images', JSON.stringify(newImages));
+      return newImages;
+    });
   };
 
   const handleContinue = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!selectedImage) {
-      setError('Please upload a photo to continue.');
+    if (selectedImages.length === 0) {
+      setError('Please upload at least one photo to continue.');
       return;
     }
-    router.push('/create/preview');
+    router.push('/create/step-5');
   };
 
   return (
@@ -45,56 +139,61 @@ export default function Step4() {
           <span>Photo Upload</span>
         </div>
         <h1 className="text-3xl font-bold leading-tight mb-3 tracking-tight text-slate-900 dark:text-white">
-          Upload Your Photo
+          Upload Your Photos
         </h1>
         <p className="text-slate-500 dark:text-pink-200/70 text-base leading-relaxed">
-          We&apos;ll transform this photo into a magical coloring page.
+          We&apos;ll transform these photos into magical coloring pages. You can select multiple!
         </p>
       </div>
 
       <div className="space-y-6">
-        <div 
-          onClick={() => !selectedImage && fileInputRef.current?.click()}
-          className={`relative aspect-square rounded-[32px] border-2 border-dashed transition-all duration-500 flex flex-col items-center justify-center overflow-hidden group cursor-pointer ${selectedImage ? 'border-primary bg-white dark:bg-white/5' : 'border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 hover:border-primary/50 hover:bg-pink-50/30 dark:hover:bg-primary/5'}`}
+
+        {/* Upload Button */}
+        <div
+          onClick={() => !isCompressing && fileInputRef.current?.click()}
+          className={`relative rounded-3xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-8 group cursor-pointer ${isCompressing ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/50 opacity-50 cursor-not-allowed' : 'border-primary/50 bg-primary/5 hover:bg-primary/10 dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/20'}`}
         >
-          {selectedImage ? (
-            <>
-              <Image 
-                src={selectedImage} 
-                alt="Preview" 
-                fill 
-                className="object-cover" 
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedImage(null);
-                  }}
-                  className="size-14 rounded-full bg-white text-red-500 shadow-xl flex items-center justify-center hover:scale-110 transition-transform"
-                >
-                  <X className="w-7 h-7" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center p-8 text-center">
-              <div className="size-20 rounded-3xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center text-primary dark:text-pink-400 mb-6 group-hover:scale-110 transition-transform duration-500 shadow-lg shadow-primary/5">
-                <Upload className="w-10 h-10" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Tap to upload</h3>
-              <p className="text-sm text-slate-500 dark:text-pink-200/60 max-w-[200px]">High quality photos work best for AI magic.</p>
-            </div>
-          )}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            accept="image/*" 
-            className="hidden" 
+          <div className="size-16 rounded-2xl bg-primary/20 dark:bg-primary/30 flex items-center justify-center text-primary dark:text-pink-400 mb-4 group-hover:scale-110 transition-transform duration-500">
+            {isCompressing ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+            {isCompressing ? 'Uploading...' : 'Add Photos'}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-pink-200/60 max-w-[200px] text-center">Tap to select one or more high quality photos.</p>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            multiple
+            className="hidden"
           />
         </div>
+
+        {/* Selected Images Grid */}
+        {selectedImages.length > 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            {selectedImages.map((imgSrc, idx) => (
+              <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden shadow-sm group border border-slate-200 dark:border-white/10">
+                <Image
+                  src={imgSrc}
+                  alt={`Upload ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button
+                    onClick={() => removeImage(idx)}
+                    className="size-10 rounded-full bg-white text-red-500 shadow-xl flex items-center justify-center hover:scale-110 transition-transform"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="flex items-center gap-2 p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 animate-shake">
@@ -103,20 +202,6 @@ export default function Step4() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-cyan-100 dark:bg-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-              <Camera className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-bold text-slate-700 dark:text-pink-200/80 uppercase tracking-wide">Take Photo</span>
-          </div>
-          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-600 dark:text-fuchsia-400">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-bold text-slate-700 dark:text-pink-200/80 uppercase tracking-wide">Gallery</span>
-          </div>
-        </div>
       </div>
 
       <div className="fixed bottom-0 left-0 w-full z-30">
@@ -126,11 +211,12 @@ export default function Step4() {
             <Link href="/create/step-3" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <button 
+            <button
               onClick={handleContinue}
-              className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${selectedImages.length > 0 ? 'shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98]' : 'opacity-50 cursor-not-allowed'}`}
+              disabled={selectedImages.length === 0}
             >
-              <span>Continue</span>
+              <span>Continue {selectedImages.length > 0 && `(${selectedImages.length})`}</span>
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
           </div>

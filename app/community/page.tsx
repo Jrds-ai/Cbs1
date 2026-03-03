@@ -3,6 +3,7 @@
 import { Heart, MessageCircle, Share2, Search, Filter, Sparkles, User } from 'lucide-react';
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Community() {
   const [activeTab, setActiveTab] = useState('trending');
@@ -53,7 +54,7 @@ export default function Community() {
 
       <div className="flex gap-2 mb-8 overflow-x-auto no-scrollbar">
         {['Trending', 'Recent', 'Following', 'Featured'].map((tab) => (
-          <button 
+          <button
             key={tab}
             onClick={() => setActiveTab(tab.toLowerCase())}
             className={`px-6 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.toLowerCase() ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white dark:bg-white/5 text-slate-500 dark:text-pink-200/40 border border-slate-200 dark:border-white/10'}`}
@@ -65,65 +66,38 @@ export default function Community() {
 
       <div className="space-y-8">
         {posts.map((post) => (
-          <div key={post.id} className="group flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full overflow-hidden border-2 border-primary/20 relative">
-                  <Image 
-                    src={post.avatar} 
-                    alt={post.author} 
-                    fill 
-                    className="object-cover" 
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">{post.author}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-pink-200/30 uppercase tracking-wider">{post.style} Style</p>
-                </div>
-              </div>
-              <button className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
-                <Filter className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-
-            <div className="relative aspect-[3/4] rounded-[32px] overflow-hidden bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-xl group-hover:shadow-2xl transition-all duration-500">
-              <Image 
-                src={post.image} 
-                alt={post.title} 
-                fill 
-                className="object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-700" 
-                referrerPolicy="no-referrer" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                <h4 className="text-white font-bold text-xl mb-1">{post.title}</h4>
-                <p className="text-white/70 text-sm">Created with AI Magic</p>
-              </div>
-              <div className="absolute top-4 right-4">
-                <div className="px-3 py-1.5 rounded-full bg-white/90 dark:bg-black/50 backdrop-blur-md flex items-center gap-1.5 shadow-lg">
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  <span className="text-[10px] font-bold text-slate-900 dark:text-white uppercase tracking-wider">AI Art</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-6">
-                <button className="flex items-center gap-2 group/btn">
-                  <Heart className="w-6 h-6 text-slate-400 group-hover/btn:text-red-500 transition-colors" />
-                  <span className="text-sm font-bold text-slate-600 dark:text-pink-200/60">{post.likes}</span>
-                </button>
-                <button className="flex items-center gap-2 group/btn">
-                  <MessageCircle className="w-6 h-6 text-slate-400 group-hover/btn:text-primary transition-colors" />
-                  <span className="text-sm font-bold text-slate-600 dark:text-pink-200/60">{post.comments}</span>
-                </button>
-              </div>
-              <button className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
-                <Share2 className="w-6 h-6 text-slate-400" />
-              </button>
-            </div>
-          </div>
+          <div key={post.id} className="hidden"></div>
         ))}
+
+        <div className="py-20 flex flex-col items-center text-center">
+          <div className="size-20 rounded-3xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-300 dark:text-white/10 mb-4 shadow-inner">
+            <Sparkles className="w-10 h-10 text-primary/40" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Nothing here yet</h3>
+          <p className="text-slate-500 dark:text-pink-200/60 max-w-[260px] mb-8">
+            Share your magical coloring books with the community to get featured!
+          </p>
+
+          <Link
+            href="/library"
+            className="w-full bg-gradient-to-r from-primary to-secondary text-white font-bold text-base py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+            <span>Share My Books</span>
+            <Search className="w-4 h-4" />
+          </Link>
+          <div className="mt-8 p-5 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-left">
+            <h4 className="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              How to share:
+            </h4>
+            <ul className="text-sm text-slate-500 dark:text-pink-200/70 space-y-2 list-disc list-inside">
+              <li>Go to your Library.</li>
+              <li>Open a book you created.</li>
+              <li>Choose viewing permissions (e.g. view, purchase, download).</li>
+              <li>Click &apos;Publish to Showcase&apos;!</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );

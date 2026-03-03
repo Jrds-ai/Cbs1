@@ -65,7 +65,7 @@ export default function Login() {
         <div className="size-24 rounded-3xl overflow-hidden shadow-xl shadow-primary/30 mb-8 relative">
           <img src="/logo.png" alt="Coloring Book Studio Logo" className="w-full h-full object-cover" />
         </div>
-        
+
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 text-center">Coloring Book Studio</h1>
         <p className="text-slate-500 dark:text-pink-200/70 text-center mb-8">Sign in to continue your magical creations.</p>
 
@@ -76,7 +76,7 @@ export default function Login() {
             <p className="text-sm text-slate-500 dark:text-pink-200/70">
               We&apos;ve sent a magic link to <strong>{email}</strong>. Click the link to sign in instantly.
             </p>
-            <button 
+            <button
               onClick={() => setStatus('idle')}
               className="mt-6 text-sm font-bold text-primary dark:text-pink-400 hover:underline"
             >
@@ -87,8 +87,8 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="w-full space-y-4" noValidate>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1">Email</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -97,12 +97,13 @@ export default function Login() {
                 className={`w-full bg-white dark:bg-white/5 border ${error ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all`}
                 placeholder="you@example.com"
                 disabled={status === 'loading'}
+                suppressHydrationWarning
               />
               {error && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {error}</p>}
             </div>
-            
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               disabled={status === 'loading'}
               className="w-full group bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 mt-6 disabled:opacity-70 disabled:pointer-events-none"
             >
@@ -124,7 +125,7 @@ export default function Login() {
           <div className="h-px bg-slate-200 dark:bg-white/10 flex-1"></div>
         </div>
 
-        <button 
+        <button
           onClick={loginWithGoogle}
           className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white font-bold text-base py-4 px-8 rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
         >

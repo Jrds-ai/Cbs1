@@ -16,6 +16,15 @@ export default function Step1() {
       setError('Please enter a book title to continue.');
       return;
     }
+
+    // Save to localStorage for later creation
+    localStorage.setItem('coloring_book_title', bookTitle.trim());
+
+    const audienceInput = document.querySelector('input[name="audience"]:checked') as HTMLInputElement;
+    if (audienceInput) {
+      localStorage.setItem('coloring_book_for_kids', audienceInput.value === 'kids' ? 'true' : 'false');
+    }
+
     router.push('/create/step-2');
   };
 
@@ -27,7 +36,7 @@ export default function Step1() {
           <span>Basic Info</span>
         </div>
         <h1 className="text-3xl font-bold leading-tight mb-3 tracking-tight text-slate-900 dark:text-white">
-          Let&apos;s start with<br/>the basics
+          Let&apos;s start with<br />the basics
         </h1>
         <p className="text-slate-500 dark:text-pink-200/70 text-base leading-relaxed">
           Give your coloring book a name and tell us who will be enjoying it.
@@ -38,16 +47,16 @@ export default function Step1() {
         <div className="group">
           <label className="block text-xs font-bold text-slate-500 dark:text-pink-200/60 mb-2 uppercase tracking-wider pl-1" htmlFor="bookTitle">Book Title</label>
           <div className="relative transition-all duration-300">
-            <input 
-              id="bookTitle" 
-              type="text" 
+            <input
+              id="bookTitle"
+              type="text"
               value={bookTitle}
               onChange={(e) => {
                 setBookTitle(e.target.value);
                 if (error) setError('');
               }}
-              placeholder="e.g. The Magic Crayon" 
-              className={`modern-input w-full rounded-2xl border-0 bg-white dark:bg-white/5 p-5 text-lg font-medium shadow-sm ring-1 ${error ? 'ring-red-500 focus:ring-red-500' : 'ring-slate-200 dark:ring-white/10 focus:ring-secondary dark:focus:ring-secondary'} focus:ring-2 placeholder:text-slate-300 dark:placeholder:text-pink-200/30 transition-all outline-none`} 
+              placeholder="e.g. The Magic Crayon"
+              className={`modern-input w-full rounded-2xl border-0 bg-white dark:bg-white/5 p-5 text-lg font-medium shadow-sm ring-1 ${error ? 'ring-red-500 focus:ring-red-500' : 'ring-slate-200 dark:ring-white/10 focus:ring-secondary dark:focus:ring-secondary'} focus:ring-2 placeholder:text-slate-300 dark:placeholder:text-pink-200/30 transition-all outline-none`}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 dark:text-pink-200/40 pointer-events-none">
               <PenLine className="w-5 h-5" />
@@ -116,7 +125,7 @@ export default function Step1() {
             <Link href="/" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <button 
+            <button
               onClick={handleContinue}
               className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-pink-600/30 hover:shadow-pink-600/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >

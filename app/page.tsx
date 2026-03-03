@@ -1,11 +1,54 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import Link from 'next/link';
 import { Brush, ArrowRight, Rocket, PawPrint, Castle, Lightbulb } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
+
+  const [recentBooks, setRecentBooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchRecent = async () => {
+      try {
+        const { db } = await import('@/lib/firebase');
+        if (!db) return;
+        const { collection, query, where, getDocs, orderBy, limit } = await import('firebase/firestore');
+        const q = query(
+          collection(db, 'books'),
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(3)
+        );
+        const snapshot = await getDocs(q);
+        const fetched = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            title: data.title || 'Untitled Book',
+            subtitle: `For: ${user.name}`,
+            status: data.status || 'Completed',
+            statusColor: data.status === 'Completed' ? 'text-green-500 bg-green-500/10' : 'text-accent-blue bg-accent-blue/10',
+            time: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleDateString() : 'Just now',
+            icon: <Brush className="w-8 h-8" />,
+            color: 'from-primary to-secondary'
+          };
+        });
+        setRecentBooks(fetched);
+      } catch (error) {
+        console.error("Error fetching recent books:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecent();
+  }, [user]);
 
   if (!user) return null;
 
@@ -43,37 +86,34 @@ export default function Dashboard() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Projects</h3>
-        <Link href="/library" className="text-primary dark:text-pink-400 text-sm font-semibold hover:opacity-80 transition-opacity">See All</Link>
+        {recentBooks.length > 0 && (
+          <Link href="/library" className="text-primary dark:text-pink-400 text-sm font-semibold hover:opacity-80 transition-opacity">See All</Link>
+        )}
       </div>
 
       <div className="space-y-4">
-        <ProjectCard 
-          icon={<Rocket className="w-8 h-8" />}
-          color="from-indigo-500 to-purple-600"
-          status="In Progress"
-          statusColor="text-accent-blue bg-accent-blue/10"
-          time="2h ago"
-          title="Space Adventure"
-          subtitle="For: Leo's 5th Birthday"
-        />
-        <ProjectCard 
-          icon={<PawPrint className="w-8 h-8" />}
-          color="from-emerald-400 to-teal-600"
-          status="Completed"
-          statusColor="text-green-500 bg-green-500/10"
-          time="1d ago"
-          title="Forest Animals"
-          subtitle="For: Kindergarten Class"
-        />
-        <ProjectCard 
-          icon={<Castle className="w-8 h-8" />}
-          color="from-rose-400 to-orange-500"
-          status="Draft"
-          statusColor="text-accent-yellow bg-accent-yellow/10"
-          time="3d ago"
-          title="Princess Tales"
-          subtitle="For: Sarah"
-        />
+        {loading ? (
+          <div className="w-full h-24 rounded-3xl bg-slate-100 dark:bg-white/5 animate-pulse"></div>
+        ) : recentBooks.length > 0 ? (
+          recentBooks.map(book => (
+            <ProjectCard
+              key={book.id}
+              icon={book.icon}
+              color={book.color}
+              status={book.status}
+              statusColor={book.statusColor}
+              time={book.time}
+              title={book.title}
+              subtitle={book.subtitle}
+            />
+          ))
+        ) : (
+          <div className="p-6 rounded-3xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 text-center shadow-sm">
+            <Rocket className="w-10 h-10 text-slate-300 dark:text-white/20 mx-auto mb-3" />
+            <h4 className="font-bold text-slate-900 dark:text-white mb-1">No projects yet</h4>
+            <p className="text-sm text-slate-500 dark:text-pink-200/60">Your magical creations will appear here.</p>
+          </div>
+        )}
       </div>
 
       <div className="mt-8 rounded-3xl relative overflow-hidden p-[2px] bg-gradient-to-r from-accent-blue via-primary to-accent-yellow shadow-lg shadow-primary/10 dark:shadow-none">

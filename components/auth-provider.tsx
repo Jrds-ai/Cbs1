@@ -2,11 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { auth, googleProvider, isConfigured } from '@/lib/firebase';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  signOut, 
+import { auth, googleProvider, db, isConfigured } from '@/lib/firebase';
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
@@ -42,13 +42,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser({
+        const userData = {
           name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
           email: firebaseUser.email || '',
           uid: firebaseUser.uid,
-        });
+        };
+        setUser(userData);
+
+        if (db) {
+          try {
+            const { doc, setDoc } = await import('firebase/firestore');
+            await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
+          } catch (e) {
+            console.error('Failed to save user to Firestore', e);
+          }
+        }
       } else {
         setUser(null);
       }
@@ -96,14 +106,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isSignInWithEmailLink(auth, link)) {
       const result = await signInWithEmailLink(auth, email, link);
       window.localStorage.removeItem('emailForSignIn');
-      
+
       const savedName = window.localStorage.getItem('nameForSignUp');
       if (savedName && result.user) {
         await updateProfile(result.user, { displayName: savedName });
         window.localStorage.removeItem('nameForSignUp');
         setUser(prev => prev ? { ...prev, name: savedName } : null);
       }
-      
+
       router.push('/');
       return true;
     }

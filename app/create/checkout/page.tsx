@@ -3,12 +3,19 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Truck, CreditCard, User, Home, Calendar, Lock, CheckCircle, AlertCircle, Globe } from 'lucide-react';
+import { Truck, CreditCard, User, Home, Calendar, Lock, CheckCircle, AlertCircle, Globe, Loader2 } from 'lucide-react';
+import { db, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, updateDoc, doc } from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { useAuth } from '@/components/auth-provider';
 
 export default function Checkout() {
   const router = useRouter();
+  const { user } = useAuth();
   const [showInShowcase, setShowInShowcase] = useState(true);
-  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
@@ -99,11 +106,61 @@ export default function Checkout() {
     return isValid;
   };
 
-  const handleSubmit = (e: React.MouseEvent) => {
+  const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      // Proceed to success or next step
-      router.push('/create/success');
+    if (!validateForm()) return;
+    if (!user) {
+      setSubmitError('You must be logged in to complete this order.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setSubmitError('');
+
+    try {
+      // 1. Gather data from localStorage
+      const title = localStorage.getItem('coloring_book_title') || 'Magical Book';
+      const audience = localStorage.getItem('coloring_book_audience') || '';
+      const style = localStorage.getItem('coloring_book_style') || 'cartoon';
+      const isForKids = localStorage.getItem('coloring_book_for_kids') === 'true';
+      const imagesRaw = localStorage.getItem('coloring_book_images') || '[]';
+      let images: string[] = [];
+      try {
+        images = JSON.parse(imagesRaw);
+      } catch (e) { }
+
+      // 2. Create foundational book document
+      const bookRef = await addDoc(collection(db as any, 'books'), {
+        userId: user.uid,
+        title,
+        audience,
+        style,
+        isForKids,
+        status: 'Processing',
+        createdAt: serverTimestamp(),
+        showInShowcase,
+        shippingInfo: {
+          fullName: formData.fullName,
+          city: formData.city,
+          zip: formData.zip
+        }
+      });
+
+      // 3. Update book with image URL references directly since they were uploaded in step-4
+      await updateDoc(doc(db as any, 'books', bookRef.id), {
+        sourceImages: images, // 'images' array now contains valid Firebase download URLs from Step 4
+        updatedAt: serverTimestamp()
+      });
+
+      // Clear processing cache
+      ['coloring_book_title', 'coloring_book_audience', 'coloring_book_style', 'coloring_book_for_kids', 'coloring_book_images'].forEach(key => localStorage.removeItem(key));
+
+      router.push(`/create/success?id=${bookRef.id}`);
+    } catch (err: any) {
+      console.error(err);
+      setSubmitError(err.message || 'An error occurred while processing your order. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -128,62 +185,62 @@ export default function Checkout() {
             <Truck className="w-5 h-5 text-primary dark:text-pink-400" />
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Shipping Details</h2>
           </div>
-          
+
           <div className="space-y-4">
             <div className="input-group group">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">Full Name</label>
               <div className="relative">
-                <input 
+                <input
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="e.g. Jane Doe" 
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.fullName ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`} 
+                  type="text"
+                  placeholder="e.g. Jane Doe"
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.fullName ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`}
                 />
                 <User className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 ${errors.fullName ? 'text-red-400' : 'text-slate-400 dark:text-white/30'} transition-colors`} />
               </div>
               {errors.fullName && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.fullName}</p>}
             </div>
-            
+
             <div className="input-group group">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">Street Address</label>
               <div className="relative">
-                <input 
+                <input
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="e.g. 123 Magic Lane" 
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.address ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`} 
+                  type="text"
+                  placeholder="e.g. 123 Magic Lane"
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.address ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`}
                 />
                 <Home className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 ${errors.address ? 'text-red-400' : 'text-slate-400 dark:text-white/30'} transition-colors`} />
               </div>
               {errors.address && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.address}</p>}
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="input-group group">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">City</label>
-                <input 
+                <input
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="New York" 
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.city ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`} 
+                  type="text"
+                  placeholder="New York"
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.city ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`}
                 />
                 {errors.city && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.city}</p>}
               </div>
               <div className="input-group group">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">Zip Code</label>
-                <input 
+                <input
                   name="zip"
                   value={formData.zip}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="10001" 
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.zip ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`} 
+                  type="text"
+                  placeholder="10001"
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.zip ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input`}
                 />
                 {errors.zip && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.zip}</p>}
               </div>
@@ -204,36 +261,36 @@ export default function Checkout() {
               <div className="w-8 h-5 bg-slate-300 dark:bg-white/20 rounded"></div>
             </div>
           </div>
-          
+
           <div className="input-group group">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">Card Number</label>
             <div className="relative">
-              <input 
+              <input
                 name="cardNumber"
                 value={formData.cardNumber}
                 onChange={handleChange}
-                type="text" 
-                placeholder="0000 0000 0000 0000" 
+                type="text"
+                placeholder="0000 0000 0000 0000"
                 maxLength={19}
-                className={`w-full bg-white dark:bg-white/5 border ${errors.cardNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono tracking-wider`} 
+                className={`w-full bg-white dark:bg-white/5 border ${errors.cardNumber ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono tracking-wider`}
               />
               <CreditCard className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 ${errors.cardNumber ? 'text-red-400' : 'text-slate-400 dark:text-white/30'} transition-colors`} />
             </div>
             {errors.cardNumber && <p className="text-xs text-red-500 mt-1 ml-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {errors.cardNumber}</p>}
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="input-group group">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">Expiry Date</label>
               <div className="relative">
-                <input 
+                <input
                   name="expiry"
                   value={formData.expiry}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="MM/YY" 
+                  type="text"
+                  placeholder="MM/YY"
                   maxLength={5}
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.expiry ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono`} 
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.expiry ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono`}
                 />
                 <Calendar className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 ${errors.expiry ? 'text-red-400' : 'text-slate-400 dark:text-white/30'} transition-colors`} />
               </div>
@@ -242,14 +299,14 @@ export default function Checkout() {
             <div className="input-group group">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 mb-1.5 ml-1 transition-colors">CVC</label>
               <div className="relative">
-                <input 
+                <input
                   name="cvc"
                   value={formData.cvc}
                   onChange={handleChange}
-                  type="text" 
-                  placeholder="123" 
+                  type="text"
+                  placeholder="123"
                   maxLength={4}
-                  className={`w-full bg-white dark:bg-white/5 border ${errors.cvc ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono`} 
+                  className={`w-full bg-white dark:bg-white/5 border ${errors.cvc ? 'border-red-500 focus:ring-red-500' : 'border-slate-200 dark:border-white/10 focus:border-primary focus:ring-primary'} rounded-2xl py-4 pl-12 pr-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/20 focus:outline-none focus:ring-1 transition-all modern-input font-mono`}
                 />
                 <Lock className={`w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 ${errors.cvc ? 'text-red-400' : 'text-slate-400 dark:text-white/30'} transition-colors`} />
               </div>
@@ -267,18 +324,18 @@ export default function Checkout() {
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Showcase</h2>
             </div>
           </div>
-          
+
           <label className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 cursor-pointer hover:border-primary/50 transition-colors">
             <div className="flex flex-col">
               <span className="font-bold text-slate-900 dark:text-white text-sm">Publish to Showcase</span>
               <span className="text-xs text-slate-500 dark:text-pink-200/60 mt-0.5">Allow others to see and be inspired by your creation</span>
             </div>
             <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showInShowcase ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}>
-              <input 
-                type="checkbox" 
-                className="sr-only" 
-                checked={showInShowcase} 
-                onChange={(e) => setShowInShowcase(e.target.checked)} 
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={showInShowcase}
+                onChange={(e) => setShowInShowcase(e.target.checked)}
               />
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showInShowcase ? 'translate-x-6' : 'translate-x-1'}`} />
             </div>
@@ -302,6 +359,13 @@ export default function Checkout() {
             </div>
           </div>
         </div>
+
+        {submitError && (
+          <div className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p className="text-sm font-medium">{submitError}</p>
+          </div>
+        )}
       </form>
 
       <div className="fixed bottom-0 left-0 w-full z-30">
@@ -311,12 +375,22 @@ export default function Checkout() {
             <Link href="/create/preview" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <button 
+            <button
               onClick={handleSubmit}
-              className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              disabled={isProcessing}
+              className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${isProcessing ? 'opacity-70 cursor-not-allowed shadow-none' : 'shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98]'}`}
             >
-              <span>Complete Order</span>
-              <CheckCircle className="w-5 h-5 transition-transform group-hover:scale-110" />
+              {isProcessing ? (
+                <>
+                  <span>Processing...</span>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </>
+              ) : (
+                <>
+                  <span>Complete Order</span>
+                  <CheckCircle className="w-5 h-5 transition-transform group-hover:scale-110" />
+                </>
+              )}
             </button>
           </div>
         </div>

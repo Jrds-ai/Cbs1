@@ -16,6 +16,10 @@ export default function Step3() {
       setError('Please select an art style to continue.');
       return;
     }
+
+    // Save to localStorage for later creation
+    localStorage.setItem('coloring_book_style', artStyle);
+
     router.push('/create/step-4');
   };
 
@@ -35,7 +39,7 @@ export default function Step3() {
       </div>
 
       <div className="space-y-6">
-        <StyleOption 
+        <StyleOption
           id="cartoon"
           icon={<Sparkles className="w-7 h-7" />}
           title="Playful Cartoon"
@@ -47,7 +51,7 @@ export default function Step3() {
             setError('');
           }}
         />
-        <StyleOption 
+        <StyleOption
           id="realistic"
           icon={<Brush className="w-7 h-7" />}
           title="Detailed Realistic"
@@ -59,7 +63,7 @@ export default function Step3() {
             setError('');
           }}
         />
-        <StyleOption 
+        <StyleOption
           id="abstract"
           icon={<Palette className="w-7 h-7" />}
           title="Whimsical Abstract"
@@ -71,7 +75,7 @@ export default function Step3() {
             setError('');
           }}
         />
-        <StyleOption 
+        <StyleOption
           id="mandala"
           icon={<Home className="w-7 h-7" />}
           title="Geometric Mandala"
@@ -107,7 +111,7 @@ export default function Step3() {
             <Link href="/create/step-2" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <button 
+            <button
               onClick={handleContinue}
               className="group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
@@ -124,12 +128,12 @@ export default function Step3() {
 function StyleOption({ id, icon, title, description, colorClass, checked, onChange }: any) {
   return (
     <label className="cursor-pointer group relative block">
-      <input 
-        type="radio" 
-        name="art_style" 
-        value={id} 
-        className="peer sr-only" 
-        checked={checked} 
+      <input
+        type="radio"
+        name="art_style"
+        value={id}
+        className="peer sr-only"
+        checked={checked}
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="relative overflow-hidden flex flex-col gap-4 rounded-3xl bg-white dark:bg-white/5 p-5 border border-slate-100 dark:border-white/5 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-primary/30 dark:hover:border-primary/30 peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary peer-checked:bg-pink-50/50 dark:peer-checked:bg-primary/10">
