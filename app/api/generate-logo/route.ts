@@ -10,7 +10,8 @@ export async function GET() {
       contents: 'A magical, whimsical logo for a web app called "Coloring Book Studio". It features an open book with glowing colors and a magic wand. Clean vector style, white background, high quality, vibrant.',
     });
     
-    for (const part of response.candidates[0].content.parts) {
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
       if (part.inlineData) {
         const base64Data = part.inlineData.data;
         return NextResponse.json({ success: true, image: `data:image/png;base64,${base64Data}` });
