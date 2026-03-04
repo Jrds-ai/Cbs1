@@ -124,6 +124,7 @@ export default function Checkout() {
       const style = localStorage.getItem('coloring_book_style') || 'cartoon';
       const isForKids = localStorage.getItem('coloring_book_for_kids') === 'true';
       const imagesRaw = localStorage.getItem('coloring_book_images') || '[]';
+      const coverPreview = localStorage.getItem('coloring_book_cover_preview') || '';
       let images: string[] = [];
       try {
         images = JSON.parse(imagesRaw);
@@ -136,6 +137,7 @@ export default function Checkout() {
         audience,
         style,
         isForKids,
+        image: coverPreview,
         status: 'Processing',
         createdAt: serverTimestamp(),
         showInShowcase,
@@ -153,7 +155,7 @@ export default function Checkout() {
       });
 
       // Clear processing cache
-      ['coloring_book_title', 'coloring_book_audience', 'coloring_book_style', 'coloring_book_for_kids', 'coloring_book_images'].forEach(key => localStorage.removeItem(key));
+      ['coloring_book_title', 'coloring_book_audience', 'coloring_book_style', 'coloring_book_for_kids', 'coloring_book_images', 'coloring_book_cover_preview'].forEach(key => localStorage.removeItem(key));
 
       router.push(`/create/success?id=${bookRef.id}`);
     } catch (err: any) {

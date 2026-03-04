@@ -200,10 +200,14 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
             <Link href="/create/step-5" className="px-6 py-4 rounded-xl font-bold text-slate-500 dark:text-pink-200/60 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm uppercase tracking-wide">
               Back
             </Link>
-            <Link href="/create/checkout" className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isGenerating || error ? 'opacity-50 pointer-events-none' : ''}`}>
+            <button
+              onClick={handleContinue}
+              disabled={isGenerating || !!error}
+              className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isGenerating || !!error ? 'opacity-50 pointer-events-none' : ''}`}
+            >
               <span>Review Book</span>
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-            </Link>
+            </button>
           </div>
         </div>
       </div>
