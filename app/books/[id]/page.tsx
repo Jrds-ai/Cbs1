@@ -214,8 +214,8 @@ export default function BookDashboard() {
                             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{book.title}</h1>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${book.status === 'Completed' ? 'bg-emerald-500 text-white' :
-                                        book.status === 'InReview' ? 'bg-blue-500 text-white' :
-                                            'bg-amber-500 text-white'
+                                    book.status === 'InReview' ? 'bg-blue-500 text-white' :
+                                        'bg-amber-500 text-white'
                                     }`}>
                                     {book.status || 'Draft'}
                                 </span>
@@ -354,12 +354,11 @@ export default function BookDashboard() {
                                                     ? 'border-primary/60 shadow-lg shadow-primary/20'
                                                     : 'border-slate-200 dark:border-white/10 group-hover:border-primary/40'
                                                 }`}>
-                                                <Image
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
                                                     src={proxyUrl}
                                                     alt={label}
-                                                    fill
-                                                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                                                    className="object-cover pointer-events-none"
+                                                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                                                 />
                                                 {/* Drag handle overlay */}
                                                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
