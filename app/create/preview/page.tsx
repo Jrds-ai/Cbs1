@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, RefreshCw, AlertCircle, MessageSquare, Send, X } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import GenerativeLoader from '@/components/GenerativeLoader';
-import { storage } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/components/auth-provider';
 
@@ -19,6 +20,10 @@ export default function Preview() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [showRevisionForm, setShowRevisionForm] = useState(false);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [isSubmittingRevision, setIsSubmittingRevision] = useState(false);
 
   useEffect(() => {
     const savedCover = localStorage.getItem('coloring_book_cover_image');
@@ -95,7 +100,13 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
     // Only run if we actually have the user object loaded, wait otherwise
     if (!loading) {
       if (user) {
-        if (!hasGenerated.current) {
+        const savedPreview = localStorage.getItem('coloring_book_cover_preview');
+        // If we already generated a preview in this session, don't regenerate it unless they explicitly ask
+        if (savedPreview) {
+          setGeneratedImage(savedPreview);
+          setIsGenerating(false);
+          hasGenerated.current = true;
+        } else if (!hasGenerated.current) {
           hasGenerated.current = true;
           generatePreview();
         }
@@ -111,6 +122,85 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
       localStorage.setItem('coloring_book_cover_preview', generatedImage);
     }
     router.push('/create/checkout');
+  };
+
+  const handleRevisionSubmit = async () => {
+    if (!revisionNotes.trim()) return;
+    setIsSubmittingRevision(true);
+    try {
+      if (!user) throw new Error("Must be logged in to request changes.");
+
+      const settingsSnap = await getDoc(doc(db as any, 'settings', 'general'));
+      const alertWithoutPurchase = settingsSnap.exists() && settingsSnap.data().alertAdminOnCoverChangeWithoutPurchase;
+
+      if (alertWithoutPurchase) {
+        const title = localStorage.getItem('coloring_book_title') || 'Magical Book';
+        const audience = localStorage.getItem('coloring_book_audience') || '';
+        const style = localStorage.getItem('coloring_book_style') || 'cartoon';
+        const isForKids = localStorage.getItem('coloring_book_for_kids') === 'true';
+        const template = localStorage.getItem('coloring_book_template') || '';
+        const company = localStorage.getItem('coloring_book_company') || '';
+        const website = localStorage.getItem('coloring_book_website') || '';
+        const cta = localStorage.getItem('coloring_book_cta') || '';
+        const logo = localStorage.getItem('coloring_book_logo') || '';
+
+        const imagesRaw = localStorage.getItem('coloring_book_images') || '[]';
+        let images: string[] = [];
+        try { images = JSON.parse(imagesRaw); } catch (e) { }
+
+        const bookRef = await addDoc(collection(db as any, 'books'), {
+          userId: user.uid,
+          title,
+          audience,
+          style,
+          isForKids,
+          image: generatedImage,
+          sourceImages: images,
+          status: 'CoverReview_Unpaid',
+          createdAt: serverTimestamp(),
+          coverRevisionNotes: revisionNotes,
+          template,
+          brandInfo: { company, website, cta, logo }
+        });
+
+        await addDoc(collection(db as any, 'notifications'), {
+          userId: user.uid,
+          type: 'cover_review_requested',
+          bookId: bookRef.id,
+          title: 'Cover Revision Requested',
+          bookTitle: title,
+          message: `You requested a change: "${revisionNotes}". We'll let you know when it's updated!`,
+          read: false,
+          createdAt: serverTimestamp(),
+          linkTo: `/books/${bookRef.id}`
+        });
+
+        // ALSO Alert Admin
+        await addDoc(collection(db as any, 'notifications'), {
+          userId: 'admin',
+          type: 'cover_review_unpaid',
+          bookId: bookRef.id,
+          title: 'Cover Change (Unpaid)',
+          bookTitle: title,
+          message: `User requested cover changes WITHOUT purchase: "${revisionNotes}".`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+
+        localStorage.setItem('coloring_book_draft_id', bookRef.id);
+        localStorage.setItem('coloring_book_cover_preview', generatedImage || '');
+      } else {
+        localStorage.setItem('coloring_book_cover_revision', revisionNotes);
+        localStorage.setItem('coloring_book_cover_preview', generatedImage || '');
+      }
+
+      router.push('/create/checkout');
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to submit revision request.");
+    } finally {
+      setIsSubmittingRevision(false);
+    }
   };
 
   return (
@@ -142,7 +232,10 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
             <p className="text-slate-900 dark:text-white font-bold mb-2">Generation Failed</p>
             <p className="text-sm text-slate-500 dark:text-pink-200/60 mb-6">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                localStorage.removeItem('coloring_book_cover_preview');
+                window.location.reload();
+              }}
               className="px-6 py-2 bg-white dark:bg-white/10 rounded-xl font-bold shadow-sm hover:scale-105 transition-transform"
             >
               Retry
@@ -170,25 +263,73 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
 
       {!isGenerating && generatedImage && !error && (
         <div className="mt-8 flex flex-col gap-4 animate-slide-up">
-          <div className="flex gap-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-all flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-5 h-5" />
-              Regenerate
-            </button>
-            <button
-              onClick={handleContinue}
-              className="flex-[2] py-4 px-6 rounded-2xl font-bold text-white bg-primary hover:bg-primary-hover shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 group"
-            >
-              Continue
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-          <p className="text-center text-xs text-slate-500 dark:text-pink-200/50">
-            Don't worry, you can always generate more options later!
-          </p>
+
+          {/* Cover Review Instructions */}
+          {!showRevisionForm && (
+            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-2xl p-4 text-sm text-blue-900 dark:text-blue-100 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold mb-1">Make it Perfect!</p>
+                <p className="text-blue-800/80 dark:text-blue-200/80">
+                  Love it? Tap "Looks Great!" to continue. <br />
+                  Want changes? Tap "Request Changes" to add specific notes like "make it more anime style", "add stars to the background", or "move the title lower". We'll hand-edit it to perfection!
+                </p>
+              </div>
+            </div>
+          )}
+
+          {showRevisionForm ? (
+            <div className="bg-white dark:bg-white/10 border border-slate-200 dark:border-white/20 p-5 rounded-3xl shadow-sm animate-scale-in">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary dark:text-pink-400" /> Request Changes
+                </h3>
+                <button onClick={() => setShowRevisionForm(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white/60 bg-slate-100 dark:bg-white/5 p-1.5 rounded-full">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <textarea
+                value={revisionNotes}
+                onChange={(e) => setRevisionNotes(e.target.value)}
+                placeholder="E.g. Make the title bigger, change the style to anime, add more flowers..."
+                className="w-full bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary focus:border-transparent transition-all min-h-[100px] resize-none mb-3"
+              />
+              <button
+                onClick={handleRevisionSubmit}
+                disabled={!revisionNotes.trim() || isSubmittingRevision}
+                className="w-full py-3.5 px-6 rounded-2xl font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingRevision ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    Continue to Checkout
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowRevisionForm(true)}
+                className="flex-1 py-4 px-3 rounded-2xl font-bold text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Request Changes
+              </button>
+              <button
+                onClick={handleContinue}
+                className="flex-[2] py-4 px-6 rounded-2xl font-bold text-white bg-primary hover:bg-primary-hover shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 group"
+              >
+                Looks Great!
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -202,10 +343,10 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
             </Link>
             <button
               onClick={handleContinue}
-              disabled={isGenerating || !!error}
-              className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isGenerating || !!error ? 'opacity-50 pointer-events-none' : ''}`}
+              disabled={isGenerating || !!error || showRevisionForm}
+              className={`group flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${isGenerating || !!error || showRevisionForm ? 'opacity-50 pointer-events-none' : ''}`}
             >
-              <span>Review Book</span>
+              <span>Continue</span>
               <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
             </button>
           </div>

@@ -4,8 +4,17 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import Link from 'next/link';
 import { Brush, ArrowRight, Rocket, PawPrint, Castle, Lightbulb } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 export default function Dashboard() {
+  if (typeof window === 'undefined') {
+    getDocs(collection(db as any, 'books')).then(snap => {
+      console.log("=== DB DUMP ===");
+      snap.forEach(doc => console.log(doc.id, doc.data()));
+      console.log("=== END DUMP ===");
+    }).catch(e => console.error("DB dump failed", e));
+  }
   const { user } = useAuth();
 
   const [recentBooks, setRecentBooks] = useState<any[]>([]);

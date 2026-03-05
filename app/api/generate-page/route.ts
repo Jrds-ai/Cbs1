@@ -1,179 +1,120 @@
 import { NextResponse } from 'next/server';
 
-export const maxDuration = 120; // 2min timeout for image generation
-
 export async function POST(req: Request) {
     try {
-        const {
-            bookId,
-            bookUserId,
-            bookTitle,
-            pageId,
-            sourceImageUrl,
-            prompt,
-            model,
-            useModalities,
-        } = await req.json();
-
-        if (!bookId || !pageId || !sourceImageUrl || !bookUserId) {
-            return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
-        }
-
+        const { image, prompt, model, useModalities } = await req.json();
         const modelId = model || 'sourceful/riverflow-v2-standard-preview';
+
+        if (!image || !prompt) {
+            return NextResponse.json({ success: false, error: 'Missing image or prompt' }, { status: 400 });
+        }
+
         const apiKey = process.env.OPENROUTER_API;
-        if (!apiKey) return NextResponse.json({ success: false, error: 'Missing API key' }, { status: 500 });
-
-        // Fetch source image server-side (bypass CORS)
-        let sourceBase64: string;
-        try {
-            const imgRes = await fetch(sourceImageUrl);
-            const buf = await imgRes.arrayBuffer();
-            const ct = imgRes.headers.get('content-type') || 'image/jpeg';
-            sourceBase64 = `data:${ct};base64,${Buffer.from(buf).toString('base64')}`;
-        } catch {
-            return NextResponse.json({ success: false, error: 'Failed to fetch source image' }, { status: 500 });
+        if (!apiKey) {
+            return NextResponse.json({ success: false, error: 'OpenRouter API key not configured' }, { status: 500 });
         }
 
-        const pagePrompt = prompt ||
-            `Transform this photo into a high-contrast, black-and-white line art coloring book page suitable for children. 
-Extract the main subject(s) and render them in clean, simplified line art. Remove all color, shading, and backgrounds.
-Output should be clean white paper with bold black outlines only — ready to print and color.
-CRITICAL: Return ONLY the raw Base64 Data URI of the generated image (starting with 'data:image/...'). No text.`;
-
-        // Call OpenRouter
-        const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-                'X-Title': 'Coloring Book Studio',
-            },
-            body: JSON.stringify({
-                model: modelId,
-                ...(useModalities !== false ? { modalities: ['image', 'text'] } : {}),
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'image_url', image_url: { url: sourceBase64 } },
-                        { type: 'text', text: pagePrompt },
-                    ],
-                }],
-            }),
-        });
-
-        if (!orRes.ok) {
-            const errText = await orRes.text();
-            return NextResponse.json({ success: false, error: `OpenRouter error: ${errText}` }, { status: 500 });
-        }
-
-        const orData = await orRes.json();
-        const choice = orData.choices?.[0]?.message;
-
-        // Extract image data
-        let imageData: string | null = null;
-        if (choice?.images?.[0]?.image_url?.url) {
-            imageData = choice.images[0].image_url.url;
-        } else if (typeof choice?.content === 'string' && choice.content.startsWith('data:image')) {
-            imageData = choice.content;
-        } else if (Array.isArray(choice?.content)) {
-            for (const part of choice.content) {
-                if (part.type === 'image_url') { imageData = part.image_url?.url; break; }
-                if (part.type === 'text' && part.text?.startsWith('data:image')) { imageData = part.text; break; }
+        // If the image is a URL (e.g. Firebase Storage), fetch it server-side and convert to base64.
+        // OpenRouter/Gemini can't access token-protected Firebase Storage URLs, so we pass raw bytes.
+        let imageData = image;
+        if (image.startsWith('http://') || image.startsWith('https://')) {
+            try {
+                const imgResponse = await fetch(image);
+                if (!imgResponse.ok) throw new Error(`Failed to fetch image: ${imgResponse.statusText}`);
+                const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+                const buffer = await imgResponse.arrayBuffer();
+                const base64 = Buffer.from(buffer).toString('base64');
+                imageData = `data:${contentType};base64,${base64}`;
+            } catch (err: any) {
+                return NextResponse.json({ success: false, error: `Could not fetch cover image: ${err.message}` }, { status: 500 });
             }
         }
 
-        if (!imageData) {
-            return NextResponse.json({ success: false, error: 'Model did not return an image' }, { status: 500 });
+        let response;
+        let retries = 3;
+        while (retries > 0) {
+            try {
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+                        'X-Title': 'Coloring Book Studio',
+                    },
+                    body: JSON.stringify({
+                        model: modelId,
+                        // modalities must be set for Gemini-family models to output images
+                        ...(useModalities !== false ? { modalities: ['image', 'text'] } : {}),
+                        messages: [
+                            {
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: prompt },
+                                    { type: 'image_url', image_url: { url: imageData } }
+                                ]
+                            }
+                        ]
+                    })
+                });
+                break;
+            } catch (err: any) {
+                retries--;
+                if (retries === 0) {
+                    throw new Error(`OpenRouter connection failed: ${err.message}`);
+                }
+                await new Promise(res => setTimeout(res, 1000));
+            }
         }
 
-        // Upload to Firebase Storage
-        const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-        const { getStorage } = await import('firebase-admin/storage');
-        const { getFirestore } = await import('firebase-admin/firestore');
-
-        // Lazy-initialize firebase-admin
-        if (!getApps().length) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '{}');
-            initializeApp({ credential: cert(serviceAccount), storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET });
+        if (!response) {
+            throw new Error('Failed to connect to OpenRouter API');
         }
 
-        const bucket = getStorage().bucket();
-        const storagePath = `users/${bookUserId}/books/${bookId}/pages/${pageId}.jpg`;
+        const data = await response.json();
+        console.log('OpenRouter raw response:', JSON.stringify(data).substring(0, 500));
 
-        // Strip data URI prefix for upload
-        const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
-        const imgBuffer = Buffer.from(base64Data, 'base64');
-        const fileRef = bucket.file(storagePath);
-        await fileRef.save(imgBuffer, { metadata: { contentType: 'image/jpeg' } });
-        await fileRef.makePublic();
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-
-        // Update the page in Firestore
-        const adminDb = getFirestore();
-        const bookRef = adminDb.collection('books').doc(bookId);
-        const bookSnap = await bookRef.get();
-        if (!bookSnap.exists) throw new Error('Book not found');
-
-        const bookData = bookSnap.data()!;
-        const generatedPages: any[] = bookData.generatedPages || [];
-        const pageIdx = generatedPages.findIndex((p: any) => p.id === pageId);
-
-        if (pageIdx === -1) {
-            // New page: append
-            generatedPages.push({
-                id: pageId,
-                url: publicUrl,
-                status: 'pending_review',
-                prompt: pagePrompt,
-                sourceImageUrl,
-                version: 1,
-                feedback: '',
-                order: generatedPages.length,
-            });
-        } else {
-            // Update existing page (regeneration)
-            generatedPages[pageIdx] = {
-                ...generatedPages[pageIdx],
-                url: publicUrl,
-                status: 'pending_review',
-                prompt: pagePrompt,
-                version: (generatedPages[pageIdx].version || 1) + 1,
-                feedback: '',
-            };
+        if (!response.ok) {
+            throw new Error(data.error?.message || 'Failed to generate preview');
         }
 
-        // Check if all pages are now generated (none are in 'generating' state)
-        const allGenerated = generatedPages.every((p: any) => p.status !== 'generating');
+        const message = data.choices?.[0]?.message;
+        let previewImage = '';
 
-        await bookRef.update({
-            generatedPages,
-            status: allGenerated ? 'InReview' : 'Processing',
-            updatedAt: new Date(),
+        // Per OpenRouter docs: generated images are in message.images[]
+        // https://openrouter.ai/docs/features/multimodal/image-generation
+        if (message?.images && message.images.length > 0) {
+            previewImage = message.images[0]?.image_url?.url || '';
+        }
+
+        // Fallback: some models embed base64 in message.content (as a string or array)
+        if (!previewImage) {
+            const content = message?.content;
+            const contentText = typeof content === 'string'
+                ? content
+                : Array.isArray(content)
+                    ? content.map((p: any) => p.text || p.image_url?.url || '').join('')
+                    : '';
+
+            // Try to find a data URL embedded in the text
+            const base64Match = contentText.match(/(data:image\/[a-zA-Z0-9\-\+]+;base64,[a-zA-Z0-9\+\/=]+)/);
+            if (base64Match?.[1]) {
+                previewImage = base64Match[1];
+            }
+        }
+
+        if (!previewImage || !previewImage.startsWith('data:image/')) {
+            console.error('AI returned no image. Full response:', JSON.stringify(data).substring(0, 1000));
+            throw new Error('The AI did not generate an image. Please try again.');
+        }
+
+        return NextResponse.json({
+            success: true,
+            image: previewImage,
         });
-
-        // Notify the book owner if all pages are now in review
-        if (allGenerated) {
-            const notifType = pageIdx === -1 ? 'pages_ready' : 'page_updated';
-            const isRegen = pageIdx !== -1;
-            await adminDb.collection('notifications').add({
-                userId: bookUserId,
-                type: notifType,
-                title: isRegen ? '🔄 A page was updated!' : '🎨 Your pages are ready to review!',
-                message: isRegen
-                    ? `We updated a page in "${bookTitle}" based on your feedback. Tap to review it.`
-                    : `Your coloring book "${bookTitle}" has ${generatedPages.length} pages ready for your review!`,
-                linkTo: `/books/${bookId}/review`,
-                bookId,
-                read: false,
-                createdAt: new Date(),
-            });
-        }
-
-        return NextResponse.json({ success: true, url: publicUrl, allGenerated });
-
     } catch (err: any) {
-        console.error('generate-page error:', err);
+        console.error('Error generating preview:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
+

@@ -334,53 +334,56 @@ export default function BookDashboard() {
                     {pageOrder.length > 0 ? (
                         <div className="p-6">
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                {pageOrder.map((url, index) => {
-                                    const isCover = url === coverUrl;
-                                    const label = isCover ? 'Cover' : `Page ${index + (coverUrl ? 0 : 1)}`;
-                                    const proxyUrl = url.includes('firebasestorage.googleapis.com')
-                                        ? `/api/image-proxy?url=${encodeURIComponent(url)}`
-                                        : url;
-                                    return (
-                                        <div
-                                            key={url}
-                                            draggable
-                                            onDragStart={(e) => handleDragStart(index, e)}
-                                            onDragOver={(e) => handleDragOver(index, e)}
-                                            onDragEnd={handleDragEnd}
-                                            className="group flex flex-col items-center gap-2 cursor-grab active:cursor-grabbing select-none"
-                                        >
-                                            <div className={`relative w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all
-                                                ${isCover
-                                                    ? 'border-primary/60 shadow-lg shadow-primary/20'
-                                                    : 'border-slate-200 dark:border-white/10 group-hover:border-primary/40'
-                                                }`}>
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={proxyUrl}
-                                                    alt={label}
-                                                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                                                />
-                                                {/* Drag handle overlay */}
-                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <div className="bg-black/50 backdrop-blur-sm rounded-lg p-1">
-                                                        <GripVertical className="w-4 h-4 text-white" />
+                                {(() => {
+                                    let pageCount = 1;
+                                    return pageOrder.map((url, index) => {
+                                        const isCover = url === coverUrl;
+                                        const label = isCover ? 'Cover' : `Page ${pageCount++}`;
+                                        const proxyUrl = url.includes('firebasestorage.googleapis.com')
+                                            ? `/api/image-proxy?url=${encodeURIComponent(url)}`
+                                            : url;
+                                        return (
+                                            <div
+                                                key={url}
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(index, e)}
+                                                onDragOver={(e) => handleDragOver(index, e)}
+                                                onDragEnd={handleDragEnd}
+                                                className="group flex flex-col items-center gap-2 cursor-grab active:cursor-grabbing select-none"
+                                            >
+                                                <div className={`relative w-full aspect-[3/4] rounded-2xl overflow-hidden border-2 transition-all
+                                                    ${isCover
+                                                        ? 'border-primary/60 shadow-lg shadow-primary/20'
+                                                        : 'border-slate-200 dark:border-white/10 group-hover:border-primary/40'
+                                                    }`}>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={proxyUrl}
+                                                        alt={label}
+                                                        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                                                    />
+                                                    {/* Drag handle overlay */}
+                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="bg-black/50 backdrop-blur-sm rounded-lg p-1">
+                                                            <GripVertical className="w-4 h-4 text-white" />
+                                                        </div>
                                                     </div>
+                                                    {isCover && (
+                                                        <div className="absolute top-2 left-2">
+                                                            <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Cover</span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {isCover && (
-                                                    <div className="absolute top-2 left-2">
-                                                        <span className="bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full">Cover</span>
-                                                    </div>
-                                                )}
+                                                <span className={`text-xs font-bold ${isCover
+                                                    ? 'text-primary dark:text-pink-400'
+                                                    : 'text-slate-500 dark:text-pink-200/60'
+                                                    }`}>
+                                                    {label}
+                                                </span>
                                             </div>
-                                            <span className={`text-xs font-bold ${isCover
-                                                ? 'text-primary dark:text-pink-400'
-                                                : 'text-slate-500 dark:text-pink-200/60'
-                                                }`}>
-                                                {label}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </div>
                         </div>
                     ) : (

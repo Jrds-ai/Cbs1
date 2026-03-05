@@ -125,39 +125,94 @@ export default function Checkout() {
       const isForKids = localStorage.getItem('coloring_book_for_kids') === 'true';
       const imagesRaw = localStorage.getItem('coloring_book_images') || '[]';
       const coverPreview = localStorage.getItem('coloring_book_cover_preview') || '';
+      const template = localStorage.getItem('coloring_book_template') || '';
+      const company = localStorage.getItem('coloring_book_company') || '';
+      const website = localStorage.getItem('coloring_book_website') || '';
+      const cta = localStorage.getItem('coloring_book_cta') || '';
+      const logo = localStorage.getItem('coloring_book_logo') || '';
+      const draftId = localStorage.getItem('coloring_book_draft_id');
+      const coverRevisionNotes = localStorage.getItem('coloring_book_cover_revision');
+
       let images: string[] = [];
       try {
         images = JSON.parse(imagesRaw);
       } catch (e) { }
 
-      // 2. Create foundational book document
-      const bookRef = await addDoc(collection(db as any, 'books'), {
-        userId: user.uid,
-        title,
-        audience,
-        style,
-        isForKids,
-        image: coverPreview,
-        status: 'Processing',
-        createdAt: serverTimestamp(),
-        showInShowcase,
-        shippingInfo: {
-          fullName: formData.fullName,
-          city: formData.city,
-          zip: formData.zip
-        }
-      });
+      let bookId = draftId;
+      const finalStatus = coverRevisionNotes || draftId ? 'CoverReview' : 'Processing';
+
+      if (draftId) {
+        // Update existing draft
+        await updateDoc(doc(db as any, 'books', draftId), {
+          status: finalStatus,
+          shippingInfo: {
+            fullName: formData.fullName,
+            address: formData.address,
+            city: formData.city,
+            zip: formData.zip
+          },
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        // Create new book
+        const bookRef = await addDoc(collection(db as any, 'books'), {
+          userId: user.uid,
+          title,
+          audience,
+          style,
+          isForKids,
+          image: coverPreview,
+          status: finalStatus,
+          createdAt: serverTimestamp(),
+          showInShowcase,
+          coverRevisionNotes: coverRevisionNotes || null,
+          shippingInfo: {
+            fullName: formData.fullName,
+            address: formData.address,
+            city: formData.city,
+            zip: formData.zip
+          },
+          template,
+          brandInfo: {
+            company,
+            website,
+            cta,
+            logo
+          },
+          sourceImages: images
+        });
+        bookId = bookRef.id;
+      }
 
       // 3. Update book with image URL references directly since they were uploaded in step-4
-      await updateDoc(doc(db as any, 'books', bookRef.id), {
-        sourceImages: images, // 'images' array now contains valid Firebase download URLs from Step 4
+      // (This might be redundant if we included them in addDoc, but let's keep for safety if images array changed)
+      await updateDoc(doc(db as any, 'books', bookId!), {
+        sourceImages: images,
         updatedAt: serverTimestamp()
       });
 
-      // Clear processing cache
-      ['coloring_book_title', 'coloring_book_audience', 'coloring_book_style', 'coloring_book_for_kids', 'coloring_book_images', 'coloring_book_cover_preview'].forEach(key => localStorage.removeItem(key));
+      // Notify admin about new order or revision
+      await addDoc(collection(db as any, 'notifications'), {
+        userId: 'admin', // Or leave empty for general admin channel
+        type: finalStatus === 'CoverReview' ? 'cover_review_requested' : 'new_order',
+        bookId: bookId,
+        title: finalStatus === 'CoverReview' ? 'Cover Revision Needed' : 'New Order Recieved',
+        message: finalStatus === 'CoverReview'
+          ? `User requested cover changes for "${title}". Order is paid.`
+          : `New order for "${title}" is ready for processing.`,
+        read: false,
+        createdAt: serverTimestamp()
+      });
 
-      router.push(`/create/success?id=${bookRef.id}`);
+      // Clear processing cache
+      [
+        'coloring_book_title', 'coloring_book_audience', 'coloring_book_style',
+        'coloring_book_for_kids', 'coloring_book_images', 'coloring_book_cover_preview',
+        'coloring_book_template', 'coloring_book_company', 'coloring_book_website',
+        'coloring_book_cta', 'coloring_book_logo', 'coloring_book_draft_id', 'coloring_book_cover_revision'
+      ].forEach(key => localStorage.removeItem(key));
+
+      router.push(`/create/success?id=${bookId}`);
     } catch (err: any) {
       console.error(err);
       setSubmitError(err.message || 'An error occurred while processing your order. Please try again.');

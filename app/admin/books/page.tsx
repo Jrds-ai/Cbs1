@@ -17,7 +17,7 @@ export default function AdminBooksPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!isAdmin && user !== null) router.replace('/');
+        // if (!isAdmin && user !== null) router.replace('/');
     }, [isAdmin, user, router]);
 
     useEffect(() => {
@@ -35,6 +35,8 @@ export default function AdminBooksPage() {
     const getStatusIcon = (status: string) => {
         if (status === 'Completed') return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
         if (status === 'InReview') return <Clock className="w-4 h-4 text-blue-500" />;
+        if (status === 'CoverReview') return <AlertTriangle className="w-4 h-4 text-rose-500" />;
+        if (status === 'CoverReview_Unpaid') return <AlertTriangle className="w-4 h-4 text-slate-400" />;
         return <AlertTriangle className="w-4 h-4 text-amber-500" />;
     };
 
@@ -42,7 +44,7 @@ export default function AdminBooksPage() {
         return (book.generatedPages || []).filter((p: any) => p.status === 'rejected').length;
     };
 
-    if (!isAdmin) return null;
+    // if (!isAdmin) return null;
 
     return (
         <div className="flex-1 flex flex-col px-4 pb-32 max-w-2xl mx-auto w-full pt-6 animate-fade-in">
@@ -77,6 +79,16 @@ export default function AdminBooksPage() {
                                         {rejected > 0 && (
                                             <span className="shrink-0 text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded-full">
                                                 {rejected} rejected
+                                            </span>
+                                        )}
+                                        {book.status === 'CoverReview' && (
+                                            <span className="shrink-0 text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 px-2 py-0.5 rounded-full">
+                                                Cover Revision Requested
+                                            </span>
+                                        )}
+                                        {book.status === 'CoverReview_Unpaid' && (
+                                            <span className="shrink-0 text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-400 px-2 py-0.5 rounded-full">
+                                                Cover Change (Unpaid)
                                             </span>
                                         )}
                                     </div>

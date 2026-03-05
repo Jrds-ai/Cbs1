@@ -13,7 +13,7 @@ export default function Templates() {
       {/* Header Section */}
       <header className="sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
-          <button 
+          <button
             onClick={() => router.back()}
             className="flex items-center justify-center p-2 -ml-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
           >
@@ -54,12 +54,12 @@ export default function Templates() {
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Card 1: Real Estate */}
-          <Link href="/brand" className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
+          <Link href="/brand" onClick={() => localStorage.setItem('coloring_book_template', 'real_estate')} className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
             <div className="relative aspect-[4/5] bg-slate-100 dark:bg-black/20 overflow-hidden">
-              <Image 
-                alt="Modern house sketch coloring page" 
+              <Image
+                alt="Modern house sketch coloring page"
                 fill
-                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                 src="https://picsum.photos/seed/house/800/1000"
                 referrerPolicy="no-referrer"
               />
@@ -89,12 +89,12 @@ export default function Templates() {
           </Link>
 
           {/* Card 2: Dentist */}
-          <Link href="/brand" className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
+          <Link href="/brand" onClick={() => localStorage.setItem('coloring_book_template', 'dentist')} className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
             <div className="relative aspect-[4/5] bg-slate-100 dark:bg-black/20 overflow-hidden">
-              <Image 
-                alt="Cute tooth character coloring page" 
+              <Image
+                alt="Cute tooth character coloring page"
                 fill
-                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                 src="https://picsum.photos/seed/tooth/800/1000"
                 referrerPolicy="no-referrer"
               />
@@ -120,12 +120,12 @@ export default function Templates() {
           </Link>
 
           {/* Card 3: Corporate Branding */}
-          <Link href="/brand" className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
+          <Link href="/brand" onClick={() => localStorage.setItem('coloring_book_template', 'corporate')} className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
             <div className="relative aspect-[4/5] bg-slate-100 dark:bg-black/20 overflow-hidden">
-              <Image 
-                alt="Abstract geometric corporate pattern" 
+              <Image
+                alt="Abstract geometric corporate pattern"
                 fill
-                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                 src="https://picsum.photos/seed/corporate/800/1000"
                 referrerPolicy="no-referrer"
               />
@@ -154,12 +154,12 @@ export default function Templates() {
           </Link>
 
           {/* Card 4: Restaurant */}
-          <Link href="/brand" className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
+          <Link href="/brand" onClick={() => localStorage.setItem('coloring_book_template', 'restaurant')} className="group relative bg-white dark:bg-[#2f1524] rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-white/5 hover:border-primary/50 transition-all cursor-pointer block">
             <div className="relative aspect-[4/5] bg-slate-100 dark:bg-black/20 overflow-hidden">
-              <Image 
-                alt="Food doodles coloring page" 
+              <Image
+                alt="Food doodles coloring page"
                 fill
-                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500" 
+                className="object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                 src="https://picsum.photos/seed/food/800/1000"
                 referrerPolicy="no-referrer"
               />

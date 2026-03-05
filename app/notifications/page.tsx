@@ -3,13 +3,21 @@
 import { Bell, ArrowLeft, Check, Trash2, MoreHorizontal, ImageIcon, AlertCircle, Package, Star, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNotifications, FirestoreNotification } from '@/components/notification-provider';
 
 export default function NotificationsPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [now, setNow] = useState<number | null>(null);
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
+
+  useEffect(() => {
+    // eslint-disable-next-line
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleMarkAllAsRead = async () => {
     await markAllAsRead();
@@ -44,9 +52,9 @@ export default function NotificationsPage() {
   };
 
   const formatTime = (ts: { seconds: number } | null) => {
-    if (!ts) return 'just now';
+    if (!ts || !now) return 'just now';
     const d = new Date(ts.seconds * 1000);
-    const diff = (Date.now() - d.getTime()) / 1000;
+    const diff = (now - d.getTime()) / 1000;
     if (diff < 60) return 'just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;

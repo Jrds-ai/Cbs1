@@ -137,11 +137,10 @@ export default function Library() {
           filteredBooks.map((book) => (
             <div key={book.id} className="group bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
               <div className="relative aspect-[4/3] overflow-hidden">
-                <Image
+                <img
                   src={book.image}
                   alt={book.title}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-4 right-4 z-10 flex flex-col items-end">

@@ -88,6 +88,8 @@ export default function AdminPage() {
     const [selectedModel, setSelectedModel] = useState(IMAGE_MODELS[0].id);
     const [saved, setSaved] = useState(false);
     const [booksStats, setBooksStats] = useState({ processing: 0, rejected: 0 });
+    const [alertOnCoverChange, setAlertOnCoverChange] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (isAdmin === false && user !== null) router.replace('/');
@@ -99,26 +101,54 @@ export default function AdminPage() {
     }, []);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchStatsAndSettings = async () => {
             try {
-                const { collection, getDocs } = await import('firebase/firestore');
+                const { collection, getDocs, doc, getDoc } = await import('firebase/firestore');
                 if (!db) return;
+
+                // Fetch settings
+                const settingsSnap = await getDoc(doc(db as any, 'settings', 'general'));
+                if (settingsSnap.exists()) {
+                    const data = settingsSnap.data();
+                    if (data.alertAdminOnCoverChangeWithoutPurchase !== undefined) {
+                        setAlertOnCoverChange(data.alertAdminOnCoverChangeWithoutPurchase);
+                    }
+                }
+
+                // Fetch stats
                 const snap = await getDocs(collection(db as any, 'books'));
                 let processing = 0, rejected = 0;
                 snap.docs.forEach(d => {
                     const data = d.data();
                     if (data.status === 'Processing' || !data.generatedPages?.length) processing++;
+                    // Also check for CoverReview_Unpaid in processing stats if needed, or maybe just simple for now
+                    if (data.status === 'CoverReview_Unpaid' || data.status === 'CoverReview_Paid') processing++;
+
                     const rej = (data.generatedPages || []).filter((p: any) => p.status === 'rejected').length;
                     rejected += rej;
                 });
                 setBooksStats({ processing, rejected });
             } catch { /* ignore */ }
         };
-        fetchStats();
+        fetchStatsAndSettings();
     }, []);
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setIsSaving(true);
         localStorage.setItem(STORAGE_KEY, selectedModel);
+
+        try {
+            const { doc, setDoc } = await import('firebase/firestore');
+            if (db) {
+                await setDoc(doc(db as any, 'settings', 'general'), {
+                    alertAdminOnCoverChangeWithoutPurchase: alertOnCoverChange
+                }, { merge: true });
+            }
+        } catch (e) {
+            console.error('Failed to save settings:', e);
+        }
+
+        setIsSaving(false);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
     };
@@ -161,6 +191,30 @@ export default function AdminPage() {
                 {booksStats.rejected > 0 && <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />}
                 <span className="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors">Open →</span>
             </Link>
+
+            {/* Site Settings */}
+            <div className="mb-6 space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-pink-200/50 ml-1 flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Site Settings
+                </h2>
+
+                <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">Alert on Cover Change (Without Purchase)</p>
+                        <p className="text-xs text-slate-500 dark:text-pink-200/60 mt-1">If enabled, when a user rejects their cover on Step 4.5, it immediately creates a Draft Book and alerts you before they checkout.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={alertOnCoverChange}
+                            onChange={(e) => setAlertOnCoverChange(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-white/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-emerald-500"></div>
+                    </label>
+                </div>
+            </div>
 
             {/* Active Model Summary */}
             <div className="bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/10 border border-primary/20 rounded-3xl p-4 mb-6">
@@ -240,20 +294,26 @@ export default function AdminPage() {
                     <div className="max-w-md mx-auto">
                         <button
                             onClick={handleSave}
+                            disabled={isSaving}
                             className={`w-full flex items-center justify-center gap-2 font-bold text-base py-4 px-8 rounded-2xl transition-all ${saved
                                 ? 'bg-emerald-500 text-white shadow-emerald-500/30 shadow-lg'
                                 : 'bg-gradient-to-r from-primary to-secondary text-white shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:scale-[1.02] active:scale-[0.98]'
-                                }`}
+                                } disabled:opacity-70 disabled:cursor-not-allowed`}
                         >
-                            {saved ? (
+                            {isSaving ? (
                                 <>
-                                    <CheckCircle2 className="w-5 h-5" />
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
+                                    Saving...
+                                </>
+                            ) : saved ? (
+                                <>
+                                    <CheckCircle2 className="w-5 h-5 shrink-0" />
                                     Saved!
                                 </>
                             ) : (
                                 <>
-                                    <Zap className="w-5 h-5" />
-                                    Apply Model
+                                    <Zap className="w-5 h-5 shrink-0" />
+                                    Save Settings
                                 </>
                             )}
                         </button>

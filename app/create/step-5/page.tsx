@@ -23,7 +23,15 @@ export default function Step5() {
     const handleContinue = (e: React.MouseEvent) => {
         e.preventDefault();
         if (selectedIndex !== null) {
-            localStorage.setItem('coloring_book_cover_image', images[selectedIndex]);
+            const selectedImage = images[selectedIndex];
+            const previousImage = localStorage.getItem('coloring_book_cover_image');
+
+            // Only clear the preview cache if they actually selected a *different* source image
+            if (previousImage !== selectedImage) {
+                localStorage.removeItem('coloring_book_cover_preview');
+            }
+
+            localStorage.setItem('coloring_book_cover_image', selectedImage);
             router.push('/create/preview');
         }
     };
