@@ -11,6 +11,15 @@ import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/fires
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/components/auth-provider';
 
+const MODELS: Record<string, { useModalities?: boolean }> = {
+  'sourceful/riverflow-v2-standard-preview': { useModalities: false },
+  'google/gemini-2.5-flash-image': { useModalities: true },
+  'google/gemini-3.1-flash-image-preview': { useModalities: true },
+  'google/gemini-3-pro-image-preview': { useModalities: true },
+  'openai/gpt-5-image-mini': { useModalities: true },
+  'openai/gpt-5-image': { useModalities: true },
+};
+
 export default function Preview() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -57,15 +66,6 @@ export default function Preview() {
 
 CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the generated image (starting with 'data:image/...'). Do NOT include any conversational text, markdown formatting, or explanations whatsoever. Just the raw string.`;
 
-        // Read admin-selected model from localStorage
-        const MODELS: Record<string, { useModalities?: boolean }> = {
-          'sourceful/riverflow-v2-standard-preview': { useModalities: false },
-          'google/gemini-2.5-flash-image': { useModalities: true },
-          'google/gemini-3.1-flash-image-preview': { useModalities: true },
-          'google/gemini-3-pro-image-preview': { useModalities: true },
-          'openai/gpt-5-image-mini': { useModalities: true },
-          'openai/gpt-5-image': { useModalities: true },
-        };
         const selectedModel = localStorage.getItem('admin_selected_model') || 'sourceful/riverflow-v2-standard-preview';
         const modelConfig = MODELS[selectedModel] || { useModalities: false };
 
@@ -144,14 +144,6 @@ CRITICAL INSTRUCTION: You MUST return ONLY the raw Base64 Data URI string of the
         if (!user) throw new Error('Not logged in');
         const title = localStorage.getItem('coloring_book_title') || 'Coloring Book';
         const selectedModel = localStorage.getItem('admin_selected_model') || 'sourceful/riverflow-v2-standard-preview';
-        const MODELS: Record<string, { useModalities?: boolean }> = {
-          'sourceful/riverflow-v2-standard-preview': { useModalities: false },
-          'google/gemini-2.5-flash-image': { useModalities: true },
-          'google/gemini-3.1-flash-image-preview': { useModalities: true },
-          'google/gemini-3-pro-image-preview': { useModalities: true },
-          'openai/gpt-5-image-mini': { useModalities: true },
-          'openai/gpt-5-image': { useModalities: true },
-        };
         const modelConfig = MODELS[selectedModel] || { useModalities: false };
         const prompt = `This GPT acts as a creative assistant that transforms uploaded images into printable, blank coloring book pages. It uses the content and theme of the image as inspiration, applying generative fill techniques to extend the image to fit a standard 8.5"x11" paper size. The image is used for inspiration. Integrate the text "${title}" elegantly into the design as the title of this cover page.
 

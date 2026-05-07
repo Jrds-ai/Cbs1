@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Sparkles, Brush, Palette, Home, ArrowRight, AlertCircle } from 'lucide-react';
+import { Sparkles, Brush, Palette, LayoutGrid, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function Step3() {
   const router = useRouter();
@@ -77,7 +77,7 @@ export default function Step3() {
         />
         <StyleOption
           id="mandala"
-          icon={<Home className="w-7 h-7" />}
+          icon={<LayoutGrid className="w-7 h-7" />}
           title="Geometric Mandala"
           description="Symmetrical designs and complex geometries. The ultimate stress reliever."
           colorClass="bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300"

@@ -318,7 +318,16 @@ export default function BrandYourBook() {
 
       <div className="sticky bottom-0 bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-white/10 p-4 backdrop-blur-lg z-20">
         <div className="max-w-lg mx-auto flex gap-3">
-          <button className="flex-1 rounded-xl bg-white dark:bg-[#36222d] border border-gray-300 dark:border-[#5a3a4b] h-12 text-slate-900 dark:text-white font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+          <button
+            onClick={() => {
+              if (!companyName.trim()) {
+                setErrors(prev => ({ ...prev, companyName: 'Company name is required.' }));
+                return;
+              }
+              alert('PDF preview is generating... This feature will be available soon.');
+            }}
+            className="flex-1 rounded-xl bg-white dark:bg-[#36222d] border border-gray-300 dark:border-[#5a3a4b] h-12 text-slate-900 dark:text-white font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+          >
             Preview PDF
           </button>
           <button

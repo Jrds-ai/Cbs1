@@ -3,8 +3,13 @@
 import Link from 'next/link';
 import { CheckCircle, Home, Book, Download, Share2, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function OrderSuccess() {
+function OrderSuccessContent() {
+  const searchParams = useSearchParams();
+  const bookId = searchParams.get('id');
+
   const handleDownload = () => {
     alert('Downloading your magical coloring book PDF...');
   };
@@ -90,8 +95,16 @@ export default function OrderSuccess() {
 
       <div className="mt-12 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-pink-200/20 mb-2">Order ID</p>
-        <p className="text-sm font-mono text-slate-500 dark:text-pink-200/40">#CB-9823-X12</p>
+        <p className="text-sm font-mono text-slate-500 dark:text-pink-200/40">{bookId ? `#${bookId.substring(0, 12).toUpperCase()}` : '#CB-PENDING'}</p>
       </div>
     </div>
+  );
+}
+
+export default function OrderSuccess() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center" />}>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }

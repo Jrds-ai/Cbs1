@@ -7,11 +7,14 @@ import { useEffect, useState } from 'react';
 
 export default function Review() {
   const [audience, setAudience] = useState<string | null>(null);
+  const [bookTitle, setBookTitle] = useState<string | null>(null);
+  const [artStyle, setArtStyle] = useState<string | null>(null);
 
   useEffect(() => {
-    // Use Promise to avoid synchronous setState in effect warning
     Promise.resolve().then(() => {
       setAudience(localStorage.getItem('coloring_book_audience'));
+      setBookTitle(localStorage.getItem('coloring_book_title'));
+      setArtStyle(localStorage.getItem('coloring_book_style'));
     });
   }, []);
 
@@ -24,10 +27,20 @@ export default function Review() {
     }
   };
 
+  const getStyleLabel = (style: string | null) => {
+    switch (style) {
+      case 'cartoon': return 'Playful Cartoon';
+      case 'realistic': return 'Detailed Realistic';
+      case 'abstract': return 'Whimsical Abstract';
+      case 'mandala': return 'Geometric Mandala';
+      default: return 'Playful Cartoon';
+    }
+  };
+
   const steps = [
-    { label: 'Basic Info', value: 'The Magic Crayon', icon: <BookOpen className="w-4 h-4" />, href: '/create/step-1' },
+    { label: 'Basic Info', value: bookTitle || 'Untitled Book', icon: <BookOpen className="w-4 h-4" />, href: '/create/step-1' },
     { label: 'Audience', value: getAudienceLabel(audience), icon: <Layers className="w-4 h-4" />, href: '/create/step-2' },
-    { label: 'Art Style', value: 'Playful Cartoon', icon: <Palette className="w-4 h-4" />, href: '/create/step-3' },
+    { label: 'Art Style', value: getStyleLabel(artStyle), icon: <Palette className="w-4 h-4" />, href: '/create/step-3' },
     { label: 'Photo Source', value: 'Uploaded Photo', icon: <ImageIcon className="w-4 h-4" />, href: '/create/step-4' },
   ];
 

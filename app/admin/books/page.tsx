@@ -17,7 +17,7 @@ export default function AdminBooksPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // if (!isAdmin && user !== null) router.replace('/');
+        if (isAdmin === false && user !== null) router.replace('/');
     }, [isAdmin, user, router]);
 
     useEffect(() => {
@@ -44,7 +44,7 @@ export default function AdminBooksPage() {
         return (book.generatedPages || []).filter((p: any) => p.status === 'rejected').length;
     };
 
-    // if (!isAdmin) return null;
+    if (!isAdmin) return null;
 
     return (
         <div className="flex-1 flex flex-col px-4 pb-32 max-w-2xl mx-auto w-full pt-6 animate-fade-in">
